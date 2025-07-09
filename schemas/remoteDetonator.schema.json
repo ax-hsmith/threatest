@@ -20,7 +20,7 @@
         "type": "string"
       }
     },
-    "atomicReadTeam": {
+    "atomicRedTeam": {
       "$ref": "atomicRedTeam.schema.json"
     }
   }

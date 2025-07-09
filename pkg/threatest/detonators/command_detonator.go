@@ -1,12 +1,18 @@
 package detonators
 
+import (
+	"github.com/hashicorp/go-uuid"
+	"github.com/datadog/threatest/pkg/threatest/logging"
+	log "github.com/sirupsen/logrus"
+)
+
 //TODO probably not a full struct needed
 type OSLayerAttackTechnique struct {
 	Command string
 }
 
 type CommandDetonator interface {
-	RunCommand(command string) (string, error)
+	RunCommand(command string, detonationID string, log *log.Entry) error
 }
 
 type CommandDetonatorImpl struct {
@@ -22,5 +28,8 @@ func NewCommandDetonator(detonator CommandDetonator, command string) *CommandDet
 }
 
 func (m *CommandDetonatorImpl) Detonate() (string, error) {
-	return m.Detonator.RunCommand(m.Technique.Command)
+	id, _ := uuid.GenerateUUID()
+	logger := logging.NewScenarioLogger(id)
+	err := m.Detonator.RunCommand(m.Technique.Command, id, logger)
+	return id, err
 }

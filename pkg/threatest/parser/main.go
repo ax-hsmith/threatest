@@ -46,55 +46,68 @@ func buildScenarios(parsed *ThreatestSchemaJson, sshHostname string, sshUsername
 		if localDetonator := parsedScenario.Detonate.LocalDetonator; localDetonator != nil {
 			var commandToRun string
 
-			if localDetonator.AtomicReadTeam != nil {
+			if localDetonator.AtomicRedTeam != nil {
 				version := "master" // default git tree to fetch atomic red tests from
-				if localDetonator.AtomicReadTeam.Version != nil {
-					version = *localDetonator.AtomicReadTeam.Version
+				if localDetonator.AtomicRedTeam.Version != nil {
+					version = *localDetonator.AtomicRedTeam.Version
 				}
 
-				test, err := atomic.GetTest(localDetonator.AtomicReadTeam.Technique, localDetonator.AtomicReadTeam.Name, version)
+				test, err := atomic.GetTestByGuid(localDetonator.AtomicRedTeam.Technique, localDetonator.AtomicRedTeam.Guid, version)
 				if err != nil {
-					return nil, fmt.Errorf("failed to retrieve atomic red team test '%s' (%s): %w", localDetonator.AtomicReadTeam.Name, localDetonator.AtomicReadTeam.Technique, err)
+					return nil, fmt.Errorf("failed to retrieve atomic red team test '%s' (%s): %w", localDetonator.AtomicRedTeam.Guid, localDetonator.AtomicRedTeam.Technique, err)
 				}
 
-				commandToRun, err = test.FormatCommand(localDetonator.AtomicReadTeam.Inputs)
+				commandToRun, err = test.FormatCommand(localDetonator.AtomicRedTeam.Inputs)
 				if err != nil {
 					return nil, err
 				}
+
+				// Extract cleanup command from ART test
+				cleanupCommand := test.FormatCleanupCommand(localDetonator.AtomicRedTeam.Inputs)
+				scenario.Detonator = atomic.NewARTDetonator(&detonators.LocalCommandExecutor{}, commandToRun, cleanupCommand, test, localDetonator.AtomicRedTeam.Inputs)
 			} else {
 				commandToRun = strings.Join(localDetonator.Commands, "; ")
+				scenario.Detonator = detonators.NewCommandDetonator(&detonators.LocalCommandExecutor{}, commandToRun)
 			}
-
-			scenario.Detonator = detonators.NewCommandDetonator(&detonators.LocalCommandExecutor{}, commandToRun)
 		} else if remoteDetonator := parsedScenario.Detonate.RemoteDetonator; remoteDetonator != nil {
 			var commandToRun string
 
-			if remoteDetonator.AtomicReadTeam != nil {
+			if remoteDetonator.AtomicRedTeam != nil {
 				version := "master" // default git tree to fetch atomic red tests from
-				if remoteDetonator.AtomicReadTeam.Version != nil {
-					version = *remoteDetonator.AtomicReadTeam.Version
+				if remoteDetonator.AtomicRedTeam.Version != nil {
+					version = *remoteDetonator.AtomicRedTeam.Version
 				}
 
-				test, err := atomic.GetTest(remoteDetonator.AtomicReadTeam.Technique, remoteDetonator.AtomicReadTeam.Name, version)
+				test, err := atomic.GetTestByGuid(remoteDetonator.AtomicRedTeam.Technique, remoteDetonator.AtomicRedTeam.Guid, version)
 				if err != nil {
-					return nil, fmt.Errorf("failed to retrieve atomic red team test '%s' (%s): %w", remoteDetonator.AtomicReadTeam.Name, remoteDetonator.AtomicReadTeam.Technique, err)
+					return nil, fmt.Errorf("failed to retrieve atomic red team test '%s' (%s): %w", remoteDetonator.AtomicRedTeam.Guid, remoteDetonator.AtomicRedTeam.Technique, err)
 				}
 
-				commandToRun, err = test.FormatCommand(remoteDetonator.AtomicReadTeam.Inputs)
+				commandToRun, err = test.FormatCommand(remoteDetonator.AtomicRedTeam.Inputs)
 				if err != nil {
 					return nil, err
 				}
+
+				//TODO: decouple
+				//TODO: confirm 1 SSH executor per attack makes sense
+				sshExecutor, err := detonators.NewSSHCommandExecutor(sshHostname, sshUsername, sshKey)
+				if err != nil {
+					return nil, fmt.Errorf("invalid SSH detonator configuration: %v", err)
+				}
+
+				// Extract cleanup command from ART test
+				cleanupCommand := test.FormatCleanupCommand(remoteDetonator.AtomicRedTeam.Inputs)
+				scenario.Detonator = atomic.NewARTDetonator(sshExecutor, commandToRun, cleanupCommand, test, remoteDetonator.AtomicRedTeam.Inputs)
 			} else {
 				commandToRun = strings.Join(remoteDetonator.Commands, "; ")
+				//TODO: decouple
+				//TODO: confirm 1 SSH executor per attack makes sense
+				sshExecutor, err := detonators.NewSSHCommandExecutor(sshHostname, sshUsername, sshKey)
+				if err != nil {
+					return nil, fmt.Errorf("invalid SSH detonator configuration: %v", err)
+				}
+				scenario.Detonator = detonators.NewCommandDetonator(sshExecutor, commandToRun)
 			}
-
-			//TODO: decouple
-			//TODO: confirm 1 SSH executor per attack makes sense
-			sshExecutor, err := detonators.NewSSHCommandExecutor(sshHostname, sshUsername, sshKey)
-			if err != nil {
-				return nil, fmt.Errorf("invalid SSH detonator configuration: %v", err)
-			}
-			scenario.Detonator = detonators.NewCommandDetonator(sshExecutor, commandToRun)
 		} else if stratusRedTeamDetonator := parsedScenario.Detonate.StratusRedTeamDetonator; stratusRedTeamDetonator != nil {
 			scenario.Detonator = detonators.StratusRedTeamTechnique(*stratusRedTeamDetonator.AttackTechnique)
 		} else if awsCliDetonator := parsedScenario.Detonate.AwsCliDetonator; awsCliDetonator != nil {

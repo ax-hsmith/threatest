@@ -7,13 +7,13 @@ import "fmt"
 
 // Configuration of an Atomic Red Team test case
 type AtomicRedTeamSchemaJson struct {
+	// Atomic Red Team test case GUID (auto_generated_guid from the test definition)
+	Guid string `json:"guid" yaml:"guid" mapstructure:"guid"`
+
 	// Inputs for the Atomic Red Team test case
-	Inputs AtomicRedTeamSchemaJsonInputs `json:"inputs,omitempty" yaml:"inputs,omitempty" mapstructure:"inputs,omitempty"`
+	Inputs map[string]string `json:"inputs,omitempty" yaml:"inputs,omitempty" mapstructure:"inputs,omitempty"`
 
-	// Atomic Red Team test case name
-	Name string `json:"name" yaml:"name" mapstructure:"name"`
-
-	// MITRE ATT&CK technique ID
+	// MITRE ATT&CK technique ID (e.g., T1059.004)
 	Technique string `json:"technique" yaml:"technique" mapstructure:"technique"`
 
 	// An optional commit hash pointing to the Atomic Red Team version to use. Will
@@ -21,8 +21,26 @@ type AtomicRedTeamSchemaJson struct {
 	Version *string `json:"version,omitempty" yaml:"version,omitempty" mapstructure:"version,omitempty"`
 }
 
-// Inputs for the Atomic Red Team test case
-type AtomicRedTeamSchemaJsonInputs map[string]string
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *AtomicRedTeamSchemaJson) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["guid"]; raw != nil && !ok {
+		return fmt.Errorf("field guid in AtomicRedTeamSchemaJson: required")
+	}
+	if _, ok := raw["technique"]; raw != nil && !ok {
+		return fmt.Errorf("field technique in AtomicRedTeamSchemaJson: required")
+	}
+	type Plain AtomicRedTeamSchemaJson
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = AtomicRedTeamSchemaJson(plain)
+	return nil
+}
 
 // Definition of an AWS CLI detonation
 type AwsCliDetonatorSchemaJson struct {
@@ -39,10 +57,28 @@ type DatadogSecuritySignalSchemaJson struct {
 	Severity *string `json:"severity,omitempty" yaml:"severity,omitempty" mapstructure:"severity,omitempty"`
 }
 
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *DatadogSecuritySignalSchemaJson) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["name"]; raw != nil && !ok {
+		return fmt.Errorf("field name in DatadogSecuritySignalSchemaJson: required")
+	}
+	type Plain DatadogSecuritySignalSchemaJson
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = DatadogSecuritySignalSchemaJson(plain)
+	return nil
+}
+
 // Definition of a local command detonation
 type LocalDetonatorSchemaJson struct {
-	// AtomicReadTeam corresponds to the JSON schema field "atomicReadTeam".
-	AtomicReadTeam *AtomicRedTeamSchemaJson `json:"atomicReadTeam,omitempty" yaml:"atomicReadTeam,omitempty" mapstructure:"atomicReadTeam,omitempty"`
+	// AtomicRedTeam corresponds to the JSON schema field "atomicRedTeam".
+	AtomicRedTeam *AtomicRedTeamSchemaJson `json:"atomicRedTeam,omitempty" yaml:"atomicRedTeam,omitempty" mapstructure:"atomicRedTeam,omitempty"`
 
 	// Commands corresponds to the JSON schema field "commands".
 	Commands []string `json:"commands,omitempty" yaml:"commands,omitempty" mapstructure:"commands,omitempty"`
@@ -50,8 +86,8 @@ type LocalDetonatorSchemaJson struct {
 
 // Definition of a remote command detonation
 type RemoteDetonatorSchemaJson struct {
-	// AtomicReadTeam corresponds to the JSON schema field "atomicReadTeam".
-	AtomicReadTeam *AtomicRedTeamSchemaJson `json:"atomicReadTeam,omitempty" yaml:"atomicReadTeam,omitempty" mapstructure:"atomicReadTeam,omitempty"`
+	// AtomicRedTeam corresponds to the JSON schema field "atomicRedTeam".
+	AtomicRedTeam *AtomicRedTeamSchemaJson `json:"atomicRedTeam,omitempty" yaml:"atomicRedTeam,omitempty" mapstructure:"atomicRedTeam,omitempty"`
 
 	// Commands corresponds to the JSON schema field "commands".
 	Commands []string `json:"commands,omitempty" yaml:"commands,omitempty" mapstructure:"commands,omitempty"`
@@ -62,6 +98,24 @@ type StratusRedTeamDetonatorSchemaJson struct {
 	// Attack technique ID of the Stratus Red Team technique to detonate (per
 	// https://stratus-red-team.cloud/attack-techniques/list/)
 	AttackTechnique *string `json:"attackTechnique,omitempty" yaml:"attackTechnique,omitempty" mapstructure:"attackTechnique,omitempty"`
+}
+
+// Schema for a Threatest test suite
+type ThreatestSchemaJson struct {
+	// The display name of the vulnerability
+	Scenarios []ThreatestSchemaJsonScenariosElem `json:"scenarios" yaml:"scenarios" mapstructure:"scenarios"`
+}
+
+// The list of scenarios
+type ThreatestSchemaJsonScenariosElem struct {
+	// How to detonate the attack
+	Detonate ThreatestSchemaJsonScenariosElemDetonate `json:"detonate" yaml:"detonate" mapstructure:"detonate"`
+
+	// Expectations corresponds to the JSON schema field "expectations".
+	Expectations []ThreatestSchemaJsonScenariosElemExpectationsElem `json:"expectations" yaml:"expectations" mapstructure:"expectations"`
+
+	// Description of the scenario
+	Name string `json:"name" yaml:"name" mapstructure:"name"`
 }
 
 // How to detonate the attack
@@ -80,45 +134,6 @@ type ThreatestSchemaJsonScenariosElemDetonate struct {
 	StratusRedTeamDetonator *StratusRedTeamDetonatorSchemaJson `json:"stratusRedTeamDetonator,omitempty" yaml:"stratusRedTeamDetonator,omitempty" mapstructure:"stratusRedTeamDetonator,omitempty"`
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *AtomicRedTeamSchemaJson) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if v, ok := raw["name"]; !ok || v == nil {
-		return fmt.Errorf("field name in AtomicRedTeamSchemaJson: required")
-	}
-	if v, ok := raw["technique"]; !ok || v == nil {
-		return fmt.Errorf("field technique in AtomicRedTeamSchemaJson: required")
-	}
-	type Plain AtomicRedTeamSchemaJson
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = AtomicRedTeamSchemaJson(plain)
-	return nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *DatadogSecuritySignalSchemaJson) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if v, ok := raw["name"]; !ok || v == nil {
-		return fmt.Errorf("field name in DatadogSecuritySignalSchemaJson: required")
-	}
-	type Plain DatadogSecuritySignalSchemaJson
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = DatadogSecuritySignalSchemaJson(plain)
-	return nil
-}
-
 // Expectations
 type ThreatestSchemaJsonScenariosElemExpectationsElem struct {
 	// DatadogSecuritySignal corresponds to the JSON schema field
@@ -130,14 +145,14 @@ type ThreatestSchemaJsonScenariosElemExpectationsElem struct {
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *ThreatestSchemaJsonScenariosElemExpectationsElem) UnmarshalJSON(b []byte) error {
+func (j *ThreatestSchemaJsonScenariosElemExpectationsElem) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
+	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
 	type Plain ThreatestSchemaJsonScenariosElemExpectationsElem
 	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
+	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
 	if v, ok := raw["timeout"]; !ok || v == nil {
@@ -147,60 +162,42 @@ func (j *ThreatestSchemaJsonScenariosElemExpectationsElem) UnmarshalJSON(b []byt
 	return nil
 }
 
-// The list of scenarios
-type ThreatestSchemaJsonScenariosElem struct {
-	// How to detonate the attack
-	Detonate ThreatestSchemaJsonScenariosElemDetonate `json:"detonate" yaml:"detonate" mapstructure:"detonate"`
-
-	// Expectations corresponds to the JSON schema field "expectations".
-	Expectations []ThreatestSchemaJsonScenariosElemExpectationsElem `json:"expectations" yaml:"expectations" mapstructure:"expectations"`
-
-	// Description of the scenario
-	Name string `json:"name" yaml:"name" mapstructure:"name"`
-}
-
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *ThreatestSchemaJsonScenariosElem) UnmarshalJSON(b []byte) error {
+func (j *ThreatestSchemaJsonScenariosElem) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
+	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if v, ok := raw["detonate"]; !ok || v == nil {
+	if _, ok := raw["detonate"]; raw != nil && !ok {
 		return fmt.Errorf("field detonate in ThreatestSchemaJsonScenariosElem: required")
 	}
-	if v, ok := raw["expectations"]; !ok || v == nil {
+	if _, ok := raw["expectations"]; raw != nil && !ok {
 		return fmt.Errorf("field expectations in ThreatestSchemaJsonScenariosElem: required")
 	}
-	if v, ok := raw["name"]; !ok || v == nil {
+	if _, ok := raw["name"]; raw != nil && !ok {
 		return fmt.Errorf("field name in ThreatestSchemaJsonScenariosElem: required")
 	}
 	type Plain ThreatestSchemaJsonScenariosElem
 	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
+	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
 	*j = ThreatestSchemaJsonScenariosElem(plain)
 	return nil
 }
 
-// Schema for a Threatest test suite
-type ThreatestSchemaJson struct {
-	// The display name of the vulnerability
-	Scenarios []ThreatestSchemaJsonScenariosElem `json:"scenarios" yaml:"scenarios" mapstructure:"scenarios"`
-}
-
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *ThreatestSchemaJson) UnmarshalJSON(b []byte) error {
+func (j *ThreatestSchemaJson) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
+	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if v, ok := raw["scenarios"]; !ok || v == nil {
+	if _, ok := raw["scenarios"]; raw != nil && !ok {
 		return fmt.Errorf("field scenarios in ThreatestSchemaJson: required")
 	}
 	type Plain ThreatestSchemaJson
 	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
+	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
 	*j = ThreatestSchemaJson(plain)

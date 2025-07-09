@@ -2,7 +2,6 @@ package detonators
 
 import (
 	"fmt"
-	"github.com/hashicorp/go-uuid"
 	"github.com/kevinburke/ssh_config"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -92,16 +91,16 @@ func (m *SSHCommandExecutor) init() error {
 	return nil
 }
 
-func (m *SSHCommandExecutor) RunCommand(command string) (string, error) {
+func (m *SSHCommandExecutor) RunCommand(command string, detonationID string, logger *log.Entry) error {
 	if !m.isInitialized {
 		if err := m.init(); err != nil {
-			return "", err
+			return err
 		}
 		m.isInitialized = true
 	}
 	session, err := m.SSHConnection.NewSession()
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer session.Close()
 
@@ -112,17 +111,12 @@ func (m *SSHCommandExecutor) RunCommand(command string) (string, error) {
 	}
 
 	if err := session.RequestPty("xterm", 80, 40, modes); err != nil {
-		return "", err
+		return err
 	}
 
-	id, _ := uuid.GenerateUUID()
-	finalCommand := FormatCommand(command, id)
-	log.Info("Running remote command: " + finalCommand)
-	if err := session.Run(finalCommand); err != nil {
-		return "", err
-	}
-
-	return id, nil
+	finalCommand := FormatCommand(command, detonationID)
+	logger.Infof("Executing %s", command)
+	return session.Run(finalCommand)
 }
 
 func resolveSSHKeyPath(path string) (string, error) {

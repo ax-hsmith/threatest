@@ -5,16 +5,16 @@
     "type": "object",
     "required": [
         "technique",
-        "name"
+        "guid"
     ],
     "properties": {
         "technique": {
             "type": "string",
-            "description": "MITRE ATT&CK technique ID"
+            "description": "MITRE ATT&CK technique ID (e.g., T1059.004)"
         },
-        "name": {
+        "guid": {
             "type": "string",
-            "description": "Atomic Red Team test case name"
+            "description": "Atomic Red Team test case GUID (auto_generated_guid from the test definition)"
         },
         "inputs": {
             "type": "object",

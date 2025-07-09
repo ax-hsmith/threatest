@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
+	_ "github.com/datadog/threatest/pkg/threatest/logging" // Initialize custom formatter
 )
 
 var rootCmd = &cobra.Command{

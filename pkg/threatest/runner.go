@@ -127,6 +127,14 @@ func (m *TestRunner) runScenario(scenario *Scenario) error {
 }
 
 func (m *TestRunner) CleanupScenario(scenario *Scenario, detonationUid string) {
+	// Try to run cleanup if the detonator supports it (e.g., ART detonators)
+	if cleaner, ok := scenario.Detonator.(interface{ Cleanup() error }); ok {
+		if err := cleaner.Cleanup(); err != nil {
+			log.Warnf("warning: failed to run detonator cleanup: %s", err.Error())
+		}
+	}
+
+	// Clean up generated signals
 	if len(scenario.Assertions) == 0 {
 		return
 	}

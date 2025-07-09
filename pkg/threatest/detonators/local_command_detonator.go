@@ -1,19 +1,14 @@
 package detonators
 
 import (
-	"github.com/hashicorp/go-uuid"
-	log "github.com/sirupsen/logrus"
 	"os/exec"
+	log "github.com/sirupsen/logrus"
 )
 
 type LocalCommandExecutor struct{}
 
-func (m *LocalCommandExecutor) RunCommand(command string) (string, error) {
-	log.Infof("Executing %s", command)
-	id, _ := uuid.GenerateUUID()
-	_, err := exec.Command("bash", "-c", FormatCommand(command, id)).Output()
-	if err != nil {
-		return "", err
-	}
-	return id, nil
+func (m *LocalCommandExecutor) RunCommand(command string, detonationID string, logger *log.Entry) error {
+	logger.Infof("Executing %s", command)
+	_, err := exec.Command("bash", "-c", FormatCommand(command, detonationID)).Output()
+	return err
 }
